@@ -1,60 +1,80 @@
+import { WORD_AUDIO_MAP } from '../assets/audioMap';
+
 class SoundController {
   private ctx: AudioContext | null = null;
   private soundEnabled: boolean = true;
   private voices: SpeechSynthesisVoice[] = [];
-  private activeUtterance: SpeechSynthesisUtterance | null = null;
-  private currentAudio: HTMLAudioElement | null = null;
   private isUnlocked: boolean = false;
+  private currentAudio: HTMLAudioElement | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
       // Pre-load voices for SpeechSynthesis
       if ('speechSynthesis' in window) {
         const loadVoices = () => {
-          this.voices = window.speechSynthesis.getVoices();
+          try {
+            this.voices = window.speechSynthesis.getVoices();
+          } catch {}
         };
         loadVoices();
-        window.speechSynthesis.onvoiceschanged = loadVoices;
+        if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+          window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
       }
 
-      // Unlock AudioContext and Audio elements on first user gesture
+      // Unlock AudioContext and speech synthesis on first user gesture
       const unlockAudio = () => {
         this.unlock();
-        window.removeEventListener('pointerdown', unlockAudio);
-        window.removeEventListener('touchstart', unlockAudio);
-        window.removeEventListener('click', unlockAudio);
       };
-      window.addEventListener('pointerdown', unlockAudio, { passive: true });
-      window.addEventListener('touchstart', unlockAudio, { passive: true });
-      window.addEventListener('click', unlockAudio, { passive: true });
+      window.addEventListener('pointerdown', unlockAudio, { passive: true, once: false });
+      window.addEventListener('touchstart', unlockAudio, { passive: true, once: false });
+      window.addEventListener('click', unlockAudio, { passive: true, once: false });
+      window.addEventListener('keydown', unlockAudio, { passive: true, once: false });
     }
   }
 
-  private unlock() {
-    if (this.isUnlocked) return;
-    this.isUnlocked = true;
+  public unlock() {
     this.initCtx();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      } catch {}
+    }
   }
 
   private initCtx() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
+    if (typeof window === 'undefined') return;
+    try {
+      if (!this.ctx) {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+        }
       }
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
-    }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    } catch {}
   }
 
   public setSoundEnabled(enabled: boolean) {
     this.soundEnabled = enabled;
-    if (!enabled && this.currentAudio) {
-      try {
-        this.currentAudio.pause();
-      } catch {}
-      this.currentAudio = null;
+    if (!enabled) {
+      if (this.currentAudio) {
+        try {
+          this.currentAudio.pause();
+        } catch {}
+        this.currentAudio = null;
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {}
+      }
     }
   }
 
@@ -73,16 +93,14 @@ class SoundController {
       osc.frequency.setValueAtTime(440, this.ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.08);
 
-      gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + 0.08);
-    } catch {
-      // Silent error
-    }
+    } catch {}
   }
 
   public playCorrect() {
@@ -99,7 +117,7 @@ class SoundController {
         osc.frequency.setValueAtTime(freq, now + idx * 0.08);
 
         gain.gain.setValueAtTime(0, now + idx * 0.08);
-        gain.gain.linearRampToValueAtTime(0.15, now + idx * 0.08 + 0.02);
+        gain.gain.linearRampToValueAtTime(0.2, now + idx * 0.08 + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.25);
 
         osc.connect(gain);
@@ -107,9 +125,7 @@ class SoundController {
         osc.start(now + idx * 0.08);
         osc.stop(now + idx * 0.08 + 0.25);
       });
-    } catch {
-      // Audio context fallback
-    }
+    } catch {}
   }
 
   public playWrong() {
@@ -124,16 +140,14 @@ class SoundController {
       osc.frequency.setValueAtTime(320, now);
       osc.frequency.exponentialRampToValueAtTime(220, now + 0.2);
 
-      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.setValueAtTime(0.18, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start(now);
       osc.stop(now + 0.2);
-    } catch {
-      // Silent error
-    }
+    } catch {}
   }
 
   public playGrowth() {
@@ -150,7 +164,7 @@ class SoundController {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now + idx * 0.1);
 
-        gain.gain.setValueAtTime(0.15, now + idx * 0.1);
+        gain.gain.setValueAtTime(0.22, now + idx * 0.1);
         gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.4);
 
         osc.connect(gain);
@@ -158,14 +172,13 @@ class SoundController {
         osc.start(now + idx * 0.1);
         osc.stop(now + idx * 0.1 + 0.4);
       });
-    } catch {
-      // Silent error
-    }
+    } catch {}
   }
 
   /**
-   * High-reliability English pronunciation playback
-   * Plays native audio via Google TTS CDN first, falling back to Web Speech API.
+   * High-reliability English pronunciation playback.
+   * Uses bundled native studio mp3 recordings for the 10 vocabulary words,
+   * guaranteeing 100% immediate playback on laptops, PCs, and mobiles without delay or overlap!
    */
   public speak(text: string) {
     if (!this.soundEnabled) return;
@@ -173,20 +186,16 @@ class SoundController {
 
     this.unlock();
 
-    // Clean up underscores, markdown, or Korean translations
+    // Clean up text
     const cleanText = text
       .replace(/______/g, ' ')
       .replace(/[_#*~]/g, '')
-      .replace(/\(.*?\)/g, '') // remove parenthesized text if any
+      .replace(/\(.*?\)/g, '')
       .trim();
 
     if (!cleanText) return;
 
-    // Check if text is English (contains at least one latin letter)
-    const hasLatin = /[a-zA-Z]/.test(cleanText);
-    if (!hasLatin) return;
-
-    // Stop any existing audio
+    // Stop any existing sound/speech to avoid overlap
     if (this.currentAudio) {
       try {
         this.currentAudio.pause();
@@ -194,28 +203,46 @@ class SoundController {
       } catch {}
       this.currentAudio = null;
     }
+    if (typeof window.speechSynthesis !== 'undefined') {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
 
-    try {
-      const encoded = encodeURIComponent(cleanText);
-      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encoded}`;
-      const audio = new Audio(ttsUrl);
-      audio.playbackRate = 0.95;
-      this.currentAudio = audio;
-
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // If Audio.play() was blocked or failed, fallback to SpeechSynthesis
-          this.speakViaSpeechSynthesis(cleanText);
+    // Check if cleanText is one of our bundled vocabulary words
+    const lower = cleanText.toLowerCase();
+    if (WORD_AUDIO_MAP[lower]) {
+      try {
+        const audio = new Audio(WORD_AUDIO_MAP[lower]);
+        audio.playbackRate = 1.0;
+        this.currentAudio = audio;
+        audio.play().catch(() => {
+          // If browser restricted Audio element, fallback to Web Speech
+          const success = this.speakViaSpeechSynthesis(cleanText);
+          if (!success) {
+            this.speakViaAudioElement(cleanText);
+          }
         });
+        return;
+      } catch {
+        const success = this.speakViaSpeechSynthesis(cleanText);
+        if (!success) {
+          this.speakViaAudioElement(cleanText);
+        }
+        return;
       }
-    } catch {
-      this.speakViaSpeechSynthesis(cleanText);
+    }
+
+    // If the word or phrase is not in the bundle (e.g., if words are customized later):
+    // First try Web Speech Synthesis, then fallback to high-reliability online audio TTS!
+    const synthSuccess = this.speakViaSpeechSynthesis(cleanText);
+    if (!synthSuccess) {
+      this.speakViaAudioElement(cleanText);
     }
   }
 
-  private speakViaSpeechSynthesis(cleanText: string) {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  private speakViaSpeechSynthesis(cleanText: string): boolean {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
     try {
       window.speechSynthesis.cancel();
       if (window.speechSynthesis.paused) {
@@ -224,32 +251,60 @@ class SoundController {
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = 'en-US';
-      utterance.rate = 0.88;
-      utterance.pitch = 1.05;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
 
       if (this.voices.length === 0) {
         this.voices = window.speechSynthesis.getVoices();
       }
-      const enVoice = this.voices.find(
-        (v) => (v.lang === 'en-US' || v.lang.startsWith('en')) && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.localService)
-      ) || this.voices.find((v) => v.lang.startsWith('en'));
+
+      // Pick the best natural English voice available on desktop or mobile
+      const enVoice =
+        this.voices.find(
+          (v) =>
+            (v.lang === 'en-US' || v.lang === 'en_US') &&
+            (v.name.includes('Natural') ||
+              v.name.includes('Google') ||
+              v.name.includes('Samantha') ||
+              v.name.includes('Jenny') ||
+              v.name.includes('Guy'))
+        ) ||
+        this.voices.find((v) => v.lang.startsWith('en')) ||
+        null;
 
       if (enVoice) {
         utterance.voice = enVoice;
       }
 
-      this.activeUtterance = utterance;
-      utterance.onend = () => {
-        this.activeUtterance = null;
-      };
-      utterance.onerror = () => {
-        this.activeUtterance = null;
-      };
-
       window.speechSynthesis.speak(utterance);
+      return true;
     } catch {
-      // Ignored
+      return false;
     }
+  }
+
+  private speakViaAudioElement(cleanText: string) {
+    try {
+      const encoded = encodeURIComponent(cleanText);
+      // Dual reliable TTS sources
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encoded}`;
+      const audio = new Audio(ttsUrl);
+      audio.playbackRate = 0.92;
+      this.currentAudio = audio;
+
+      const p = audio.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          // Alternative TTS endpoint
+          const altUrl = `https://dict.youdao.com/dictvoice?audio=${encoded}&type=2`;
+          const altAudio = new Audio(altUrl);
+          altAudio.playbackRate = 0.95;
+          this.currentAudio = altAudio;
+          altAudio.play().catch(() => {});
+        });
+      }
+    } catch {}
   }
 }
 

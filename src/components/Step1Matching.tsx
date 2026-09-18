@@ -66,11 +66,6 @@ export const Step1Matching: React.FC<Step1MatchingProps> = ({
       setMatchedIds((prev) => [...prev, selectedEnglishId]);
       setGrowthFeedback('Wordie가 성장하고 있어요! 🌱');
 
-      const matchedWord = currentWords.find((w) => w.id === selectedEnglishId);
-      if (matchedWord) {
-        sound.speak(matchedWord.word);
-      }
-
       setSelectedEnglishId(null);
       setSelectedKoreanId(null);
 
@@ -131,8 +126,7 @@ export const Step1Matching: React.FC<Step1MatchingProps> = ({
   const handleSelectKorean = (wordItem: WordItem) => {
     if (matchedIds.includes(wordItem.id)) return;
     sound.playPop();
-    // Also pronounce the English word so student hears the pronunciation
-    sound.speak(wordItem.word);
+    // Do not speak English when clicking Korean card to prevent duplicate/delayed sound
     setSelectedKoreanId(wordItem.id);
   };
 
@@ -275,8 +269,6 @@ export const Step1Matching: React.FC<Step1MatchingProps> = ({
       {/* Hint Modal */}
       <HintModal
         isOpen={Boolean(hintWord)}
-        word={hintWord?.word}
-        meaning={hintWord?.meaning}
         hint={hintWord?.hint || ''}
         onClose={() => setHintWord(null)}
       />

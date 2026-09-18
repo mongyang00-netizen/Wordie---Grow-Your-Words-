@@ -40,18 +40,18 @@ export const Step2Choice: React.FC<Step2ChoiceProps> = ({
 
     setSelectedOption(option);
 
-    // Speak English pronunciation on click
-    if (currentQ.promptType === 'KR_TO_EN') {
-      sound.speak(option);
-    } else {
-      sound.speak(currentQ.targetWord.word);
-    }
-
     if (option === currentQ.correctOption) {
       // Correct!
       setIsCorrectState(true);
       sound.playCorrect();
       setShowGrowthFeedback(true);
+
+      // Only if choices were Korean (EN_TO_KR), speak the target word so the child hears the English pronunciation again
+      if (currentQ.promptType === 'EN_TO_KR') {
+        setTimeout(() => {
+          sound.speak(currentQ.targetWord.word);
+        }, 350);
+      }
 
       setTimeout(() => {
         if (currentIndex + 1 < questions.length) {
@@ -63,7 +63,7 @@ export const Step2Choice: React.FC<Step2ChoiceProps> = ({
           // Finished all 10 questions
           onComplete();
         }
-      }, 900);
+      }, 1000);
     } else {
       // Incorrect!
       setIsCorrectState(false);
@@ -127,51 +127,64 @@ export const Step2Choice: React.FC<Step2ChoiceProps> = ({
       </div>
 
       {/* Cohesive Quiz Block: Prompt Card + Choices directly beneath */}
-      <div className="w-full flex flex-col mt-1">
+      <div className="w-full flex-1 flex flex-col justify-between mt-1">
         {/* Center prompt card */}
         <motion.div
           key={`prompt-${currentQ.id}`}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={() => {
-            sound.speak(
-              currentQ.promptType === 'EN_TO_KR' ? currentQ.prompt : currentQ.targetWord.word
-            );
+            if (currentQ.promptType === 'EN_TO_KR') {
+              sound.speak(currentQ.prompt);
+            }
           }}
-          className="w-full min-h-[125px] sm:min-h-[145px] bg-gradient-to-b from-amber-50/90 to-orange-50/50 rounded-3xl flex flex-col items-center justify-center p-4 sm:p-5 shadow-xs relative border-3 border-amber-200 cursor-pointer hover:border-amber-300 transition-colors"
+          className={`w-full min-h-[110px] sm:min-h-[125px] bg-gradient-to-b from-slate-50 to-blue-50/40 rounded-3xl flex flex-col items-center justify-center p-3.5 sm:p-4 shadow-xs relative border-3 border-slate-200 transition-colors shrink-0 ${
+            currentQ.promptType === 'EN_TO_KR' ? 'cursor-pointer hover:border-blue-300' : ''
+          }`}
         >
           <div className="flex items-center gap-2">
-            <span className="text-3xl sm:text-4xl font-black text-amber-950 font-['Fredoka'] tracking-wide">
+            <span className="text-3xl sm:text-4xl font-black text-slate-800 font-['Fredoka'] tracking-wide">
               {currentQ.prompt}
             </span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                sound.speak(
-                  currentQ.promptType === 'EN_TO_KR' ? currentQ.prompt : currentQ.targetWord.word
-                );
-              }}
-              className="p-1.5 sm:p-2 text-amber-600 hover:text-amber-900 bg-white/90 rounded-full shadow-xs border border-amber-200 transition-colors"
-              title="발음 듣기"
-            >
-              <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
+            {currentQ.promptType === 'EN_TO_KR' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sound.speak(currentQ.prompt);
+                }}
+                className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 bg-white/95 rounded-full shadow-xs border border-slate-200 transition-colors cursor-pointer"
+                title="영어 발음 듣기"
+              >
+                <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            )}
           </div>
-          <span className="text-[11px] sm:text-xs text-amber-800 mt-2 font-bold bg-white/80 px-3 py-0.5 rounded-full border border-amber-200/80">
+          <span className="text-[11px] sm:text-xs text-slate-600 mt-1.5 font-bold bg-white/90 px-3 py-0.5 rounded-full border border-slate-200">
             {currentQ.promptType === 'KR_TO_EN'
               ? '한국어 뜻에 맞는 영어 단어를 고르세요'
-              : '영어 단어에 맞는 한국어 뜻을 고르세요'}
+              : '영어 단어를 듣고 맞는 한국어 뜻을 고르세요'}
           </span>
         </motion.div>
 
-        {/* Choices row positioned right below prompt card */}
-        <div className="mt-3 sm:mt-3.5 w-full">
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-            {currentQ.options.map((opt) => {
+        {/* 6 Choices grid (2 columns x 3 rows) filling bottom space harmoniously */}
+        <div className="mt-3 sm:mt-4 w-full flex-1 flex flex-col justify-center pb-2">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+            {currentQ.options.map((opt, idx) => {
               const isSelected = selectedOption === opt;
               const isCorrect = isSelected && isCorrectState === true;
               const isShaking = shakeOption === opt;
+
+              // 6 totally distinct, non-overlapping pastel colors (Sky, Rose, Emerald, Purple, Amber, Teal)
+              const colorThemes = [
+                'bg-sky-50 text-sky-950 border-sky-200 border-b-sky-300 hover:bg-sky-100 hover:border-sky-400',
+                'bg-rose-50 text-rose-950 border-rose-200 border-b-rose-300 hover:bg-rose-100 hover:border-rose-400',
+                'bg-emerald-50 text-emerald-950 border-emerald-200 border-b-emerald-300 hover:bg-emerald-100 hover:border-emerald-400',
+                'bg-purple-50 text-purple-950 border-purple-200 border-b-purple-300 hover:bg-purple-100 hover:border-purple-400',
+                'bg-amber-50 text-amber-950 border-amber-200 border-b-amber-300 hover:bg-amber-100 hover:border-amber-400',
+                'bg-teal-50 text-teal-950 border-teal-200 border-b-teal-300 hover:bg-teal-100 hover:border-teal-400',
+              ];
+              const theme = colorThemes[idx % colorThemes.length];
 
               return (
                 <motion.button
@@ -179,23 +192,30 @@ export const Step2Choice: React.FC<Step2ChoiceProps> = ({
                   type="button"
                   id={`choice-${opt}`}
                   onClick={() => {
-                    sound.speak(opt);
+                    // Only play sound if option is English (when promptType is KR_TO_EN)
+                    if (currentQ.promptType === 'KR_TO_EN') {
+                      sound.speak(opt);
+                    }
                     handleSelect(opt);
                   }}
                   animate={isShaking ? { x: [-6, 6, -4, 4, 0] } : {}}
-                  whileTap={{ scale: 0.95 }}
-                  className={`w-full h-18 sm:h-22 rounded-2xl flex flex-col items-center justify-center p-2 font-bold text-sm sm:text-base text-center transition-all cursor-pointer shadow-xs ${
+                  whileTap={{ scale: 0.96 }}
+                  className={`w-full min-h-[58px] sm:min-h-[66px] rounded-2xl flex items-center justify-center px-3 py-2 font-bold text-sm sm:text-base text-center transition-all cursor-pointer shadow-xs border-2 border-b-4 relative ${
                     isCorrect
-                      ? 'bg-emerald-100 text-emerald-900 border-2 border-emerald-500 border-b-4 border-emerald-600 font-extrabold ring-2 ring-emerald-200'
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-500 border-b-emerald-600 font-extrabold ring-2 ring-emerald-300'
                       : isSelected && isCorrectState === false
-                      ? 'bg-rose-100 text-rose-900 border-2 border-rose-400 border-b-4 border-rose-500'
-                      : 'bg-white text-slate-800 hover:bg-sky-50/70 border-2 border-sky-200 border-b-4 border-sky-300 active:border-b-2 active:translate-y-0.5'
+                      ? 'bg-rose-100 text-rose-900 border-rose-400 border-b-rose-500'
+                      : theme
                   }`}
                 >
-                  <span className="break-keep line-clamp-2 leading-tight font-['Fredoka']">
+                  <span className="break-keep line-clamp-2 leading-snug font-['Fredoka']">
                     {opt}
                   </span>
-                  {isCorrect && <Check className="w-4 h-4 mt-0.5 text-emerald-700 shrink-0" />}
+                  {isCorrect && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-emerald-500 text-white rounded-full p-0.5 shadow-xs">
+                      <Check className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                 </motion.button>
               );
             })}
@@ -206,8 +226,6 @@ export const Step2Choice: React.FC<Step2ChoiceProps> = ({
       {/* Hint Modal */}
       <HintModal
         isOpen={isHintOpen}
-        word={currentQ.targetWord.word}
-        meaning={currentQ.targetWord.meaning}
         hint={currentQ.targetWord.hint}
         onClose={handleCloseHint}
       />
