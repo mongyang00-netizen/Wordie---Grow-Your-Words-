@@ -1,0 +1,6 @@
+{
+  "name": "Wordie - Grow Your Words!",
+  "description": "초등 5~6학년이 같은 10개의 영어 단어를 세 가지 방식으로 반복 학습하며 Wordie 캐릭터를 성장시키는 영어 단어 게임",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
